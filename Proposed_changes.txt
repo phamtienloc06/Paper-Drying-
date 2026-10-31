@@ -1,0 +1,31 @@
+QUYẾT ĐỊNH CHU TRÌNH SẤY — ĐÃ TRIỂN KHAI TRÊN HOANG_DEV
+
+Chốt theo yêu cầu người dùng: thời gian sấy chỉnh trên HMI, đếm đủ thời gian
+khi giữ nhiệt trong vùng; hết giờ chuyển làm nguội đến ngưỡng nhiệt độ.
+
+1. Một mẻ: IDLE -> HEATING -> HOLDING -> COOLING -> COMPLETE.
+   HEATING bật gia nhiệt đến điểm đặt, quạt bật sau thời gian trễ YAML.
+   HOLDING quạt chạy liên tục; gia nhiệt bật tại S-D, tắt tại S.
+   Chỉ đếm thời gian trong vùng S +/- D; ngoài vùng tạm dừng, giữ tiến độ.
+   COOLING heater OFF hẳn; quạt ON đến ngưỡng nguội. COMPLETE chờ mẻ mới.
+
+2. drying_duration_s mặc định 600 giây (10 phút), HMI nhập phút.
+   cooling_stop_temperature_c mặc định 35 độ, có thể chỉnh trên HMI.
+   Setpoint vẫn chỉnh trên HMI. Thông số mẻ bị khóa khi đang AUTO chưa COMPLETE.
+   Thay đổi HMI dùng trong phiên chạy; mặc định YAML áp dụng khi restart.
+   fan_post_run_s đã bỏ; quạt không còn tắt theo 10 giây cố định.
+
+3. Thời gian chỉ tích lũy giữa hai mẫu liên tiếp trong vùng, dùng monotonic.
+   Không tính thời gian gia nhiệt, làm nguội hoặc khoảng chuyển tiếp ra/vào vùng.
+   OFF/MANUAL, lỗi, shutdown/restart hủy mẻ và xóa tiến độ; không tự tiếp tục.
+   Lệnh bắt đầu lại khi mẻ đang chạy bị từ chối. Hoàn tất chờ lệnh mẻ mới.
+
+4. Mất cảm biến/quá nhiệt: heater OFF, fan ON khi bus còn điều khiển được.
+   Bật quạt lỗi/quá hạn: heater OFF rồi retry đúng một lần. Retry xác nhận được
+   thì chỉ cho heater bật lại ở chu kỳ an toàn sau; cả hai lỗi thì FAULT/hủy mẻ.
+   Timeout xác nhận sau lời gọi đồng bộ, không ngắt giao dịch đang chờ.
+   Relay API dùng trạng thái tải, xét NO/NC; coil feedback không chứng minh fan quay.
+
+5. Chưa có cơ cấu/driver cửa; HMI nhắc mở cửa thoát ẩm thủ công lúc làm nguội.
+   Chưa có đo ẩm hoặc mô hình để chứng minh giấy khô. Thời gian và nhiệt độ là
+   thông số thực nghiệm người dùng chọn. MQTT/database/SCADA còn là phần dự kiến.

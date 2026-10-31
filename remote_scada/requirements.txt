@@ -1,0 +1,4 @@
+Flask>=3,<4
+python-dotenv>=1,<2
+requests>=2.31,<3
+websocket-client>=1.7,<2

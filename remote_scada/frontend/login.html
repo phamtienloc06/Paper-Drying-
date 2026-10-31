@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập SCADA | Buồng sấy giấy</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page">
+  <!-- Đăng nhập bằng tài khoản web SCADA riêng, không dùng tài khoản ThingsBoard. -->
+  <main class="login-card">
+    <a class="brand login-brand" href="/">
+      <span class="brand-mark">S</span>
+      <span><strong>SCADA</strong><small>BUỒNG SẤY GIẤY</small></span>
+    </a>
+    <p class="eyebrow">TRUY CẬP ĐƯỢC BẢO VỆ</p>
+    <h1>Đăng nhập hệ thống</h1>
+    <p class="muted">Theo dõi buồng sấy, trạng thái thiết bị và các yêu cầu vận hành.</p>
+    {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="/login" class="login-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="username">Tên đăng nhập</label>
+      <input id="username" name="username" autocomplete="username" required autofocus>
+      <label for="password">Mật khẩu</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button class="button button-primary button-full" type="submit">Đăng nhập</button>
+    </form>
+    <p class="login-footnote">Sử dụng tài khoản được cấp cho người vận hành hệ thống.</p>
+  </main>
+</body>
+</html>

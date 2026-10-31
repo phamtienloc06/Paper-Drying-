@@ -1,0 +1,135 @@
+# Cấu hình dự kiến cho máy 1; Modbus RTU qua bộ chuyển USB-to-RS485.
+modbus:
+  # COM do Windows gán cho bộ chuyển đổi; có thể thay đổi khi cắm lại thiết bị.
+  port: "COM5"
+  # Các thông số serial phải khớp với mọi thiết bị trên cùng bus RS485.
+  baudrate: 9600
+  parity: "N"
+  bytesize: 8
+  stopbits: 1
+  # TODO: Xác nhận timeout dùng chung này phù hợp với PT100; trang relay hướng dẫn chờ 1000 ms.
+  timeout_ms: 1000
+  # Số lần thử lại sau lần gửi đầu tiên; tổng cộng tối đa 4 lần gửi.
+  retries: 3
+  retry_delay_ms: 100
+  # poll_interval_ms: 1000
+
+pt100:
+  # Mỗi thiết bị trên cùng bus RS485 phải có slave ID riêng (dải hợp lệ 1..247).
+  # ID vận hành hiện tại/mục tiêu; datasheet ghi ID xuất xưởng mặc định 0xFF.
+  slave_id: 2
+  default_slave_id: 255
+  # FC03, register 0x0000: raw 255 tương ứng 25.5 °C.
+  temperature_register: 0x0000
+  temperature_register_count: 1
+  temperature_function_code: 3
+  data_type: int16
+  scale: 0.1
+  temperature_unit: "C"
+  # Giới hạn kiểm tra dữ liệu; điều chỉnh theo dải đo thực tế của module.
+  minimum_temperature_c: -200.0
+  maximum_temperature_c: 850.0
+  # FC03, register 0x0001: raw 1000 tương ứng 100.0 ohm.
+  resistance_register: 0x0001
+  resistance_register_count: 1
+  resistance_scale: 0.1
+  # Đọc ID hiện tại bằng FC03, ghi ID mới bằng FC06; giá trị đích 1..247.
+  device_id_register: 0x0002
+  device_id_read_function_code: 3
+  device_id_write_function_code: 6
+  # Đọc/ghi baud bằng FC03/FC06; các số là mã cần ghi vào register 0x0003.
+  baudrate_register: 0x0003
+  baudrate_read_function_code: 3
+  baudrate_write_function_code: 6
+  baudrate_codes:
+    1200: 0
+    2400: 1
+    4800: 2
+    9600: 3
+    19200: 4
+    reset: 5
+  # Chỉ ghi FC06; module báo 0xFFFF khi đọc lại.
+  temperature_calibration_register: 0x0004
+  # Chỉ ghi FC06, hiệu chỉnh điện trở theo giá trị dương; module báo 0xFFFF khi đọc lại.
+  resistance_calibration_register: 0x0005
+  # FC03/FC06: 0 chỉ truy vấn (mặc định), 1..255 gửi tự động mỗi X giây.
+  auto_temperature_register: 0x0006
+
+relay:
+  # ID vận hành mong muốn; datasheet ghi mặc định 255, cần cấu hình module sang ID 1 trước.
+  slave_id: 1
+  default_slave_id: 255
+  # Baud mặc định là 9600; thiết bị hỗ trợ 4800, 9600 hoặc 19200 bps.
+  # Baud đang dùng thực tế phải khớp cấu hình modbus.baudrate và các thiết bị cùng bus.
+  supported_baudrates: [4800, 9600, 19200]
+  # FC01 đọc trạng thái coil; FC05 ghi một relay; FC0F ghi nhiều coil.
+  read_coils_function_code: 1
+  write_single_coil_function_code: 5
+  write_multiple_coils_function_code: 15
+  # Quy ước bit đọc FC01 đang thử: false=OFF, true=ON.
+  status_readback:
+    "on": true
+    "off": false
+  # FC05: 0xFF00 bật relay, 0x0000 tắt relay.
+  coil_on_value: 0xFF00
+  coil_off_value: 0x0000
+  # Module 2 relay: coil 0 điều khiển Relay 1, coil 1 điều khiển Relay 2.
+  channels:
+    relay_1_coil: 0x0000
+    relay_2_coil: 0x0001
+  # Datasheet FC01 đọc trạng thái từ coil 0 với số lượng 8.
+  status_coil_count: 8
+  # Commissioning một lần, không tự chạy lúc khởi động: ghi ID mới bằng FC16 broadcast.
+  device_id_register: 0x0000
+  device_id_target: 1
+  device_id_write_function_code: 16
+  device_id_broadcast_slave_id: 0
+  # Datasheet dùng FC03 đọc ID hiện tại ở register 0x0000 qua slave ID 0.
+  device_id_read_function_code: 3
+  device_id_read_broadcast_slave_id: 0
+  # Ghi baud vào 0x03E9 bằng FC16; đọc mã baud ở 0x03E8 bằng FC03.
+  baudrate_register: 0x03E9
+  baudrate_read_register: 0x03E8
+  baudrate_write_function_code: 16
+  baudrate_read_function_code: 3
+  baudrate_codes:
+    4800: 2
+    9600: 3
+    19200: 4
+  # Trạng thái ON/OFF ở API là trạng thái tải. Chọn đúng tiếp điểm đã đấu.
+  outputs:
+    heater: {channel: relay_1, contact: "NO"}
+    process_fan: {channel: relay_2, contact: "NO"}
+
+# Thông tin cấu hình module theo ghi chú datasheet; chưa phải lệnh cần chạy khi khởi động.
+# Thanh ghi baud rate PT100: 0x0003 (FC03 đọc, FC06 ghi).
+# Thanh ghi cấu hình slave ID PT100: 0x0002 (FC03 đọc, FC06 ghi).
+# Tối đa 247 slave theo dải địa chỉ chuẩn; relay EPCB công bố ID 1..255.
+# Nếu có nhiều module, kiểm tra giới hạn thực tế và cân nhắc repeater RS485.
+# PT100 và relay trên cùng bus RS485 phải dùng chung baud rate, parity, data bits và stop bits.
+
+# Thông số điều khiển dùng chung cho mô phỏng và phần cứng.
+control:
+  temperature_setpoint_c: 60.0
+  control_deadband_c: 2.0
+  high_temperature_limit_c: 90.0
+  minimum_setpoint_c: 20.0
+  maximum_setpoint_c: 80.0
+  heater_to_fan_start_delay_s: 5.0
+  # Thời gian giữ nhiệt đủ điều kiện; HMI hiển thị/nhập theo phút.
+  drying_duration_s: 600.0
+  # Quạt dừng khi nguội đến ngưỡng này; phải thấp hơn setpoint - deadband.
+  cooling_stop_temperature_c: 35.0
+  fan_start_confirmation_timeout_s: 10.0
+
+runtime:
+  poll_interval_ms: 200
+hmi:
+  host: 127.0.0.1
+  port: 8000
+# Chỉ phục vụ mô phỏng giao diện, không dùng để tính thời gian sấy thật.
+simulation:
+  ambient_c: 28.0
+  heater_rate_c_per_s: 0.55
+  fan_cooling_rate_c_per_s: 0.42
+  ambient_loss_per_s: 0.018

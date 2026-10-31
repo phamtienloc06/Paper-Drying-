@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900"><rect width="1600" height="900" fill="white"/>
+<text x="800" y="72" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="#243449" text-anchor="middle" dominant-baseline="central">SƠ ĐỒ HOẠT ĐỘNG HỆ THỐNG SẤY GIẤY</text>
+<rect x="50" y="170" width="460" height="555" rx="18" fill="#f5f7fa" stroke="#94a3b8" stroke-width="2"/>
+<text x="280" y="212" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#243449" text-anchor="middle" dominant-baseline="central">THIẾT BỊ</text>
+<rect x="90" y="290" width="380" height="90" rx="18" fill="#ffffff" stroke="#a4b0c0" stroke-width="2"/>
+<text x="280" y="335" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#243449" text-anchor="middle" dominant-baseline="central">Cảm biến nhiệt độ PT100</text>
+<rect x="90" y="450" width="380" height="95" rx="18" fill="#ffffff" stroke="#a4b0c0" stroke-width="2"/>
+<text x="280" y="482" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#243449" text-anchor="middle" dominant-baseline="central">Module relay</text>
+<text x="280" y="518" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Bộ gia nhiệt • Quạt</text>
+<rect x="625" y="170" width="400" height="555" rx="18" fill="#edf4ff" stroke="#5087d5" stroke-width="2"/>
+<text x="825" y="212" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#24559b" text-anchor="middle" dominant-baseline="central">MÁY 1</text>
+<text x="825" y="251" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Điều khiển cục bộ</text>
+<rect x="660" y="290" width="330" height="255" rx="18" fill="#ffffff" stroke="#85a7d5" stroke-width="2"/>
+<text x="825" y="347" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#243449" text-anchor="middle" dominant-baseline="central">Bộ điều khiển</text>
+<text x="825" y="401" font-family="Arial, sans-serif" font-size="26" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">AUTO / MANUAL</text>
+<text x="825" y="451" font-family="Arial, sans-serif" font-size="24" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Xử lý nhiệt độ và lệnh</text>
+<text x="825" y="496" font-family="Arial, sans-serif" font-size="24" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Kiểm tra lỗi, bảo vệ</text>
+<rect x="660" y="605" width="330" height="70" rx="18" fill="#ffffff" stroke="#85a7d5" stroke-width="2"/>
+<text x="825" y="640" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#243449" text-anchor="middle" dominant-baseline="central">HMI • Cài đặt, vận hành</text>
+<polyline points="825,605 825,545" fill="none" stroke="#52647b" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="825,545 819.0,557.0 831.0,557.0" fill="#52647b"/>
+<polygon points="825,605 831.0,593.0 819.0,593.0" fill="#52647b"/>
+<polyline points="470,335 660,335" fill="none" stroke="#52647b" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="660,335 648.0,329.0 648.0,341.0" fill="#52647b"/>
+<text x="560" y="308" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Nhiệt độ</text>
+<polyline points="660,495 470,495" fill="none" stroke="#52647b" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="470,495 482.0,501.0 482.0,489.0" fill="#52647b"/>
+<text x="560" y="468" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Bật / tắt</text>
+<text x="565" y="405" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Modbus</text>
+<text x="565" y="434" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">RS485</text>
+<rect x="1150" y="170" width="400" height="240" rx="18" fill="#fff6e9" stroke="#d5a04e" stroke-width="2"/>
+<text x="1350" y="212" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#91631d" text-anchor="middle" dominant-baseline="central">ĐÁM MÂY</text>
+<text x="1350" y="277" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#243449" text-anchor="middle" dominant-baseline="central">ThingsBoard</text>
+<text x="1350" y="328" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Dữ liệu • Lịch sử</text>
+<text x="1350" y="369" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Cảnh báo</text>
+<polyline points="990,335 1090,335 1090,290 1150,290" fill="none" stroke="#52647b" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1150,290 1138.0,284.0 1138.0,296.0" fill="#52647b"/>
+<polygon points="990,335 1002.0,341.0 1002.0,329.0" fill="#52647b"/>
+<text x="1081" y="253" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">MQTT</text>
+<rect x="1150" y="490" width="400" height="235" rx="18" fill="#eff9f2" stroke="#67a780" stroke-width="2"/>
+<text x="1350" y="532" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#2e7148" text-anchor="middle" dominant-baseline="central">MÁY 2</text>
+<text x="1350" y="589" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#243449" text-anchor="middle" dominant-baseline="central">SCADA từ xa</text>
+<text x="1350" y="639" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Giám sát và gửi lệnh</text>
+<text x="1350" y="680" font-family="Arial, sans-serif" font-size="25" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">điều khiển</text>
+<polyline points="1350,410 1350,490" fill="none" stroke="#52647b" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="1350,490 1356.0,478.0 1344.0,478.0" fill="#52647b"/>
+<polygon points="1350,410 1344.0,422.0 1356.0,422.0" fill="#52647b"/>
+<text x="1458" y="450" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#243449" text-anchor="middle" dominant-baseline="central">Internet</text>
+</svg>

@@ -1,0 +1,35 @@
+# Bí mật môi trường ở mọi cấp; vẫn theo dõi mẫu cấu hình.
+.env
+# Bỏ qua cả cấu hình môi trường riêng như .env.local hoặc .env.production.
+.env.*
+!.env.example
+# Môi trường Python và bytecode.
+.venv/
+venv/
+__pycache__/
+*.pyc
+# Database SQLite và file phụ trợ.
+*.db
+*.sqlite
+*.sqlite3
+*.db-*
+*.sqlite-*
+*.sqlite3-*
+# Nhật ký.
+*.log
+logs/
+# Cache kiểm thử và báo cáo coverage.
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+artifacts/scada/
+artifacts/hmi/
+# Cấu hình IDE cục bộ và file tạm.
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

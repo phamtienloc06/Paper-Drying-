@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>SCADA · Buồng sấy giấy</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Đến nội dung chính</a>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="SCADA buồng sấy giấy"><span class="brand-mark">S</span><span><strong>SCADA</strong><small>BUỒNG SẤY GIẤY</small></span></a>
+  <div class="top-actions"><span class="source-badge" id="source-label">CHƯA CÓ DỮ LIỆU</span><span class="connection"><i id="cloud-indicator"></i><span id="cloud-status">Đang kết nối…</span></span><button class="button button-quiet" id="logout-button" type="button">Đăng xuất</button></div>
+</header>
+<div class="app-shell">
+  <nav class="sidebar" aria-label="Màn hình SCADA">
+    <p class="nav-caption">TRẠM ĐIỀU KHIỂN / 01</p>
+    <a href="#operation" class="nav-item" data-view="operation" aria-current="page"><span>01</span>Vận hành</a>
+    <a href="#trends" class="nav-item" data-view="trends"><span>02</span>Xu hướng</a>
+    <a href="#alarms" class="nav-item" data-view="alarms"><span>03</span>Cảnh báo <b id="alarm-count">—</b></a>
+    <a href="#diagnostics" class="nav-item" data-view="diagnostics"><span>04</span>Chẩn đoán</a>
+    <div class="sidebar-note"><strong>Điều khiển từ xa</strong><p>Máy 1 quyết định lệnh và giữ các liên động của hệ thống.</p></div>
+  </nav>
+  <main id="main-content" class="layout">
+    <div class="page-heading"><div><p class="eyebrow" id="page-eyebrow">VẬN HÀNH / TỔNG QUAN</p><h1 id="page-title">Trạng thái hệ thống</h1></div><div class="updated">Mẫu máy 1 lúc <strong id="updated-at">—</strong><small id="sample-age">Chưa có mẫu đo</small></div></div>
+    {% if config.get('SCADA_PREVIEW') %}<p class="muted">BẢN XEM THỬ CỤC BỘ · Thiết bị mô phỏng · Lịch sử nền là dữ liệu minh họa.</p>{% endif %}
+    <div id="data-banner" class="data-banner" role="status">Đang chờ dữ liệu máy 1. Các giá trị thiết bị chưa được xác nhận.</div>
+    <div id="alarm-banner" class="alarm-banner" hidden role="alert"><strong id="alarm-banner-title"></strong><span id="alarm-banner-message"></span><a href="#alarms">Xem cảnh báo →</a></div>
+
+    <section id="view-operation" data-panel="operation" aria-label="Vận hành">
+      <div class="operation-grid">
+        <article class="card process-card">
+          <div class="section-heading"><div><p class="eyebrow">QUÁ TRÌNH</p><h2>Buồng sấy</h2></div><span class="status-pill" id="mode">CHƯA XÁC NHẬN</span></div>
+          <div class="process-diagram" aria-label="Sơ đồ buồng sấy, cảm biến, gia nhiệt và quạt">
+            <div class="equipment" id="heater-equipment"><span class="equipment-symbol" aria-hidden="true">≋</span><strong>GIA NHIỆT</strong><span id="heater-state">CHƯA XÁC NHẬN</span><small>Relay: <b id="heater-feedback">—</b></small></div>
+            <div class="chamber"><div class="chamber-label">NHIỆT ĐỘ BUỒNG · PT100</div><div class="pv"><strong id="temperature">—</strong><span>°C</span></div><div class="pv-quality" id="pv-quality">Chưa có dữ liệu</div><div class="sp-line">Điểm đặt <strong id="temperature-setpoint">— °C</strong></div><div class="temperature-track"><span id="temperature-bar"></span><i id="setpoint-marker"></i></div><div class="range-labels"><span>0 °C</span><span id="hold-band-label">Vùng giữ nhiệt: —</span><span>100 °C</span></div></div>
+            <div class="equipment" id="fan-equipment"><span class="equipment-symbol" aria-hidden="true">✣</span><strong>QUẠT TUẦN HOÀN</strong><span id="fan-state">CHƯA XÁC NHẬN</span><small>Relay: <b id="fan-feedback">—</b></small></div>
+          </div>
+          <p class="footnote">Trạng thái ON/OFF là lệnh controller và phản hồi relay. Hệ thống chưa đo dòng tải hoặc tốc độ quạt.</p>
+        </article>
+        <article class="card batch-card"><div class="section-heading"><div><p class="eyebrow">CHU TRÌNH AUTO</p><h2 id="phase">Chưa xác định</h2></div></div><ol class="phase-steps" id="phase-steps"><li data-phase="HEATING"><span>1</span>Gia nhiệt</li><li data-phase="HOLDING"><span>2</span>Giữ nhiệt</li><li data-phase="COOLING"><span>3</span>Làm nguội</li><li data-phase="COMPLETE"><span>4</span>Hoàn tất</li></ol><p id="timer-status" class="muted">Chưa xác định tiến độ mẻ</p><div class="progress-track"><span id="drying-progress"></span></div><div class="timer-grid"><div><small>Đã giữ đủ nhiệt</small><strong id="elapsed">—</strong></div><div><small>Thời gian còn lại</small><strong id="remaining">—</strong></div></div></article>
+        <article class="card control-card">
+          <div class="section-heading"><div><p class="eyebrow">ĐIỀU KHIỂN</p><h2>Thông số mẻ</h2></div><span class="draft-state" id="draft-status">Chờ dữ liệu</span></div>
+          <form id="settings-form">
+            <label for="setpoint-input">Nhiệt độ đặt <span>°C</span></label><input id="setpoint-input" type="number" step="0.1" required disabled>
+            <label for="duration-input">Thời gian giữ nhiệt <span>phút</span></label><input id="duration-input" type="number" step="0.1" min="0.1" required disabled>
+            <label for="cooling-input">Ngưỡng dừng quạt <span>°C</span></label><input id="cooling-input" type="number" step="0.1" min="0" required disabled>
+            <p id="recipe-limits" class="field-hint">Giới hạn thông số lấy từ máy 1.</p>
+            <div class="form-actions"><button class="button button-primary" id="save-settings" type="submit" disabled>Áp dụng thông số</button><button class="button button-quiet" id="discard-settings" type="button" disabled>Hoàn tác</button></div>
+          </form>
+          <p id="control-reason" class="control-reason">Đang chờ dữ liệu mới để cho phép vận hành.</p>
+          <div class="control-actions"><button class="button button-primary" id="start-button" type="button" disabled>Bắt đầu sấy</button><button class="button button-secondary" id="stop-button" type="button" disabled>Dừng mẻ · OFF</button></div>
+          <button class="button button-danger button-full" id="emergency-button" type="button">YÊU CẦU DỪNG KHẨN</button>
+          <p class="footnote">Yêu cầu từ xa qua ThingsBoard; kết quả tải được theo dõi riêng.</p>
+          <div class="command-result" id="command-result" role="status" aria-live="polite">Chưa gửi yêu cầu trong phiên này.</div>
+        </article>
+        <article class="card command-card"><div class="section-heading"><div><p class="eyebrow">PHẢN HỒI ĐIỀU KHIỂN</p><h2>Yêu cầu trong phiên</h2></div><span class="muted">20 yêu cầu gần nhất</span></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Yêu cầu</th><th>Kết quả</th></tr></thead><tbody id="command-history"><tr><td colspan="3" class="empty-cell">Chưa có yêu cầu.</td></tr></tbody></table></div></article>
+      </div>
+    </section>
+
+    <section id="view-trends" data-panel="trends" hidden aria-label="Xu hướng">
+      <article class="card chart-card">
+        <div class="section-heading"><div><p class="eyebrow">DỮ LIỆU LỊCH SỬ</p><h2>Nhiệt độ và điểm đặt</h2></div><div class="toolbar"><label for="history-range">Khoảng xem</label><select id="history-range"><option value="1" selected>1 giờ</option><option value="6">6 giờ</option><option value="24">24 giờ</option><option value="168">7 ngày</option></select><button id="history-refresh" type="button" class="button button-quiet">Tải lại</button><button id="export-history" type="button" class="button button-secondary" disabled>Xuất CSV</button></div></div>
+        <p id="history-status" class="muted" role="status">Chưa tải lịch sử.</p>
+        <div class="chart-wrap"><canvas id="temperature-chart" aria-label="Biểu đồ nhiệt độ theo thời gian, có trục thời gian và đơn vị °C"></canvas><p id="chart-empty" class="chart-empty">Chưa có dữ liệu lịch sử.</p><div id="chart-tooltip" class="chart-tooltip" hidden></div></div>
+        <div class="legend"><span><i class="legend-temperature"></i>Nhiệt độ</span><span><i class="legend-setpoint"></i>Điểm đặt</span><span><i class="legend-band"></i>Vùng giữ nhiệt hiện tại</span></div><p class="footnote">Di chuột để xem mẫu đo. Khoảng thiếu dữ liệu được ngắt nét; lịch sử được tổng hợp theo khoảng thời gian.</p>
+      </article>
+    </section>
+
+    <section id="view-alarms" data-panel="alarms" hidden aria-label="Cảnh báo">
+      <article class="card alarm-card" id="active-alarm-card"><div class="section-heading"><div><p class="eyebrow">CẢNH BÁO HIỆN TẠI</p><h2 id="active-alarm">Chưa xác nhận</h2></div><span id="active-alarm-priority" class="status-pill">—</span></div><p id="alarm-message">Đang chờ trạng thái máy 1.</p><dl class="alarm-details"><div><dt>Phát sinh</dt><dd id="alarm-raised-at">—</dd></div><div><dt>Hướng xử lý</dt><dd id="alarm-action">Kiểm tra dữ liệu kết nối.</dd></div></dl><p class="footnote">Khóa FAULT được reset tại HMI máy 1 sau khi xử lý nguyên nhân và xác nhận tải OFF.</p></article>
+      <article class="card"><div class="section-heading"><div><p class="eyebrow">NHẬT KÝ SỰ KIỆN</p><h2>Lịch sử cảnh báo</h2></div><div class="toolbar"><label for="alarm-filter">Hiển thị</label><select id="alarm-filter"><option value="all">Tất cả sự kiện</option><option value="active">Phát sinh</option><option value="cleared">Kết thúc</option></select><span id="alarm-history-count" class="muted">—</span></div></div><p id="alarm-history-status" class="muted">Cùng khoảng thời gian với màn Xu hướng.</p><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Mức độ</th><th>Cảnh báo</th><th>Sự kiện</th></tr></thead><tbody id="alarm-history"><tr><td colspan="4" class="empty-cell">Đang tải lịch sử…</td></tr></tbody></table></div></article>
+    </section>
+
+    <section id="view-diagnostics" data-panel="diagnostics" hidden aria-label="Chẩn đoán">
+      <article class="card"><div class="section-heading"><div><p class="eyebrow">CHẤT LƯỢNG DỮ LIỆU</p><h2>Kết nối và thiết bị</h2></div><span class="status-pill" id="data-quality">CHƯA XÁC NHẬN</span></div><div class="table-wrap"><table><thead><tr><th>Thành phần</th><th>Trạng thái</th><th>Ý nghĩa</th></tr></thead><tbody><tr><td>Trình duyệt → SCADA</td><td id="backend-connected">—</td><td>Khả năng đọc API của máy 2</td></tr><tr><td>Dữ liệu máy 1</td><td id="telemetry-connected">—</td><td>Độ mới của snapshot controller</td></tr><tr><td>MQTT máy 1</td><td id="mqtt-connected">—</td><td>Trạng thái MQTT do máy 1 báo</td></tr><tr><td>Bus Modbus</td><td id="modbus-connected">—</td><td>Kết nối bus do máy 1 báo</td></tr><tr><td>Cảm biến PT100</td><td id="sensor-connected">—</td><td>Máy 1 đọc được mẫu nhiệt độ</td></tr><tr><td>Module relay</td><td id="relay-connected">—</td><td>Phản hồi Modbus gần nhất từ relay</td></tr></tbody></table></div><dl class="diagnostic-details"><div><dt>Timestamp máy 1</dt><dd id="device-timestamp">—</dd></div><div><dt>Tuổi dữ liệu</dt><dd id="diagnostic-age">—</dd></div><div><dt>Lỗi đọc API gần nhất</dt><dd id="last-data-error">Không có</dd></div></dl><p class="footnote">Snapshot kết nối cũ được thể hiện là chưa xác nhận. Các thông tin này không phải phép đo dòng tải hoặc tốc độ quạt.</p></article>
+    </section>
+  </main>
+</div>
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>

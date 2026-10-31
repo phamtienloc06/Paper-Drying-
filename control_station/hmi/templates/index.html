@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HMI buồng sấy giấy</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="station-title"><h1>Buồng sấy giấy</h1><span>HMI CỤC BỘ · MÁY 1</span></div>
+    <div class="top-actions">
+      <span id="simulation-badge" class="simulation-badge hidden">MÔ PHỎNG</span>
+      <span id="poll-status" class="connection-pill pending"><span></span>Đang kết nối</span>
+      <button id="emergency-stop" class="btn danger" disabled>DỪNG KHẨN</button>
+    </div>
+  </header>
+
+  <section id="alarm-card" class="alarm-banner is-unconfirmed" aria-label="Trạng thái và cảnh báo">
+    <strong id="alarm-status" class="alarm-status">ĐANG CHỜ DỮ LIỆU</strong>
+    <span class="alarm-code">Mã lỗi: <b id="alarm-code">—</b></span>
+    <p id="alarm-message" role="status">Chưa có dữ liệu từ controller.</p>
+    <button id="reset-alarm" class="btn secondary" disabled>Reset FAULT</button>
+  </section>
+
+  <main class="dashboard">
+    <div class="monitor-column">
+      <section class="panel overview-panel">
+        <h2>Tổng quan buồng sấy</h2>
+        <div class="process-readings">
+          <div class="reading main-reading"><span>Nhiệt độ hiện tại</span><strong><b id="temperature-value">--.-</b><small> °C</small></strong></div>
+          <div class="reading"><span>Điểm đặt</span><strong><b id="setpoint-readout">--</b><small> °C</small></strong></div>
+          <div class="reading"><span>Giới hạn quá nhiệt</span><strong><b id="limit-readout">--</b><small> °C</small></strong></div>
+        </div>
+
+        <svg id="system-schematic" class="system-schematic unknown" viewBox="0 0 900 350" role="img" aria-labelledby="schematic-title schematic-description">
+          <title id="schematic-title">Buồng sấy với gia nhiệt, quạt tuần hoàn và module relay</title>
+          <desc id="schematic-description">Quạt đặt sát gia nhiệt PTC. Chuyển động thể hiện trạng thái tải controller đã xác nhận qua relay, không đo tốc độ quạt. Cửa thoát ẩm mở thủ công.</desc>
+          <defs>
+            <linearGradient id="chamber-top" x2="0" y2="1"><stop stop-color="#e0f0fc"/><stop offset="1" stop-color="#9dc2dd"/></linearGradient>
+            <linearGradient id="chamber-back" x2="0" y2="1"><stop stop-color="#c8e1f2"/><stop offset="1" stop-color="#f1f8fd"/></linearGradient>
+            <radialGradient id="heat-glow"><stop stop-color="#f3a44b" stop-opacity=".65"/><stop offset="1" stop-color="#f3a44b" stop-opacity="0"/></radialGradient>
+            <marker id="air-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="currentColor"/></marker>
+          </defs>
+          <!-- Enclosure and static manually-operated vent. -->
+          <path d="M160 90L205 52H713L670 90Z" fill="url(#chamber-top)" stroke="#7c858d" stroke-width="2"/>
+          <path d="M670 90L713 52V273L670 313Z" fill="#94b9d1" stroke="#527d9c" stroke-width="2"/>
+          <rect x="160" y="90" width="510" height="223" rx="2" fill="#a5c5dc" stroke="#4e7c9d" stroke-width="3"/>
+          <rect x="171" y="102" width="487" height="198" fill="url(#chamber-back)" stroke="#6c9ab9" stroke-width="2"/>
+          <path d="M171 102L204 80H654V272L658 300" fill="none" stroke="#afb7be" stroke-width="2"/>
+          <rect x="164" y="313" width="24" height="9" rx="2" fill="#6e777f"/><rect x="644" y="313" width="24" height="9" rx="2" fill="#6e777f"/>
+          <path d="M393 60L431 48L455 62L414 74Z" fill="#c0c7cd" stroke="#7c858d" stroke-width="2"/>
+          <path d="M397 59L391 31L430 21L440 47Z" fill="#e1e5e8" stroke="#7c858d" stroke-width="2"/>
+          <path class="leader" d="M432 36L456 12H476"/><text class="diagram-label" x="482" y="18">Cửa thoát ẩm · mở thủ công</text>
+          <!-- Paper tray: always static, no moisture or door feedback. -->
+          <path d="M188 206L221 178H633L602 209Z" fill="#b5bdc4" stroke="#7b858e" stroke-width="2"/>
+          <path d="M188 206V215H602V209" fill="none" stroke="#79848d" stroke-width="4"/>
+          <path d="M222 199L239 183H583L565 199Z" fill="#fff" stroke="#a9b2bb" stroke-width="1.5"/>
+          <path class="leader" d="M228 192L133 183H85"/><text class="diagram-label" x="10" y="186">Khay giấy</text>
+          <ellipse id="heat-zone" cx="267" cy="255" rx="100" ry="70" fill="url(#heat-glow)"/>
+          <!-- PTC element: glow is enabled only by confirmed heater_on. -->
+          <g id="heater-assembly">
+            <path d="M207 243L226 229H277L259 243Z" fill="#858f99" stroke="#68747e"/>
+            <path d="M259 243L277 229V278L259 291Z" fill="#737e88" stroke="#626e78"/>
+            <rect x="207" y="243" width="52" height="48" rx="2" fill="#b6bec6" stroke="#626e78" stroke-width="2"/>
+            <path id="heater-elements" d="M216 285V251H221V285H227V251H232V285H238V251H243V285H249V251" fill="none" stroke="#646f79" stroke-width="3"/>
+          </g>
+          <path class="leader" d="M208 267H145"/><text class="diagram-label" x="10" y="269">Gia nhiệt PTC · <tspan id="heater-diagram-state">—</tspan></text>
+          <!-- Fan is beside the heater; rotating group does not include its housing. -->
+          <g id="fan-assembly" transform="translate(320 265)">
+            <rect x="-33" y="-34" width="66" height="68" rx="3" fill="#8e99a3" stroke="#626e78" stroke-width="2"/>
+            <circle r="27" fill="#e3e7eb" stroke="#63707a" stroke-width="2"/>
+            <g id="fan-rotor" fill="#77848f">
+              <path d="M2 -3C4 -24 27 -24 25 -11C24 -3 12 4 2 -3Z"/>
+              <path d="M2 -3C4 -24 27 -24 25 -11C24 -3 12 4 2 -3Z" transform="rotate(120)"/>
+              <path d="M2 -3C4 -24 27 -24 25 -11C24 -3 12 4 2 -3Z" transform="rotate(240)"/>
+            </g>
+            <circle r="6" fill="#596670"/><circle cx="-27" cy="-28" r="2" fill="#596670"/><circle cx="27" cy="28" r="2" fill="#596670"/>
+          </g>
+          <path class="leader" d="M344 287L362 330H382"/><text class="diagram-label" x="388" y="336">Quạt tuần hoàn · <tspan id="fan-diagram-state">—</tspan></text>
+          <g class="airflow" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="10 9">
+            <path d="M325 228C325 133 512 121 586 159" marker-end="url(#air-arrow)"/>
+            <path d="M601 219C602 283 473 294 389 266" marker-end="url(#air-arrow)"/>
+          </g>
+          <!-- Probe and relay are distinct from the fan. -->
+          <path d="M622 132H695" stroke="#626e78" stroke-width="6"/>
+          <rect x="677" y="120" width="12" height="25" fill="#8d98a2" stroke="#626e78"/>
+          <path d="M695 132C727 132 725 147 725 174" fill="none" stroke="#68747e" stroke-width="3"/>
+          <path class="leader" d="M694 128L713 100H733"/><text class="diagram-label" x="739" y="106">PT100</text>
+          <g id="relay-module" transform="translate(759 229)">
+            <rect width="83" height="64" rx="3" fill="#c6ced5" stroke="#6b7781" stroke-width="2"/>
+            <rect x="8" y="8" width="30" height="31" rx="2" fill="#a6b2bf" stroke="#71808d"/><rect x="45" y="8" width="30" height="31" rx="2" fill="#a6b2bf" stroke="#71808d"/>
+            <circle id="relay-heater-indicator" class="relay-indicator" cx="23" cy="49" r="5"/>
+            <circle id="relay-fan-indicator" class="relay-indicator" cx="60" cy="49" r="5"/>
+          </g>
+          <path class="leader" d="M799 229V205H754"/><text class="diagram-label" x="727" y="198">Module relay 2 kênh</text>
+          <text class="diagram-label channel-label" x="727" y="314">Gia nhiệt: <tspan id="relay-heater-state">—</tspan></text>
+          <text class="diagram-label channel-label" x="727" y="337">Quạt: <tspan id="relay-fan-state">—</tspan></text>
+        </svg>
+        <p class="diagram-note">Bố trí thiết bị minh họa · trạng thái tải được xác nhận qua relay.</p>
+      </section>
+
+      <section class="panel time-panel">
+        <h2>Thời gian sấy</h2>
+        <div class="time-readings">
+          <div class="reading main-reading"><span>Còn lại</span><strong id="drying-remaining">--:--</strong></div>
+          <div class="reading"><span>Đã giữ nhiệt</span><strong id="drying-elapsed">--:--</strong></div>
+          <div class="reading"><span>Thời gian cài đặt</span><strong id="drying-duration">--:--</strong></div>
+        </div>
+        <div class="batch-message" role="status"><strong id="timer-status">Chưa bắt đầu mẻ sấy.</strong><p id="vent-hint">Cửa thoát ẩm mở thủ công khi làm nguội.</p></div>
+      </section>
+
+      <section class="panel output-panel-group">
+        <h2>Điều khiển tay <span id="manual-hint">CHỈ MANUAL</span></h2>
+        <div id="heater-panel" class="output-row">
+          <span class="equipment-symbol" aria-hidden="true">♨</span><span class="equipment-name">Gia nhiệt PTC</span><strong id="heater-state">—</strong>
+          <div class="output-commands" role="group" aria-label="Điều khiển gia nhiệt"><button class="btn output-command" data-output="heater" data-value="true" disabled>BẬT</button><button class="btn output-command" data-output="heater" data-value="false" disabled>TẮT</button></div>
+        </div>
+        <div id="fan-panel" class="output-row">
+          <svg class="equipment-symbol" viewBox="-30 -30 60 60" aria-hidden="true"><g fill="currentColor"><path d="M2 -3C4 -24 27 -24 25 -11C24 -3 12 4 2 -3Z"/><path d="M2 -3C4 -24 27 -24 25 -11C24 -3 12 4 2 -3Z" transform="rotate(120)"/><path d="M2 -3C4 -24 27 -24 25 -11C24 -3 12 4 2 -3Z" transform="rotate(240)"/><circle r="5"/></g></svg>
+          <span class="equipment-name">Quạt tuần hoàn khí</span><strong id="fan-state">—</strong>
+          <div class="output-commands" role="group" aria-label="Điều khiển quạt"><button class="btn output-command" data-output="fan" data-value="true" disabled>BẬT</button><button class="btn output-command" data-output="fan" data-value="false" disabled>TẮT</button></div>
+        </div>
+        <p id="manual-help" class="panel-note">Chọn MANUAL để điều khiển đầu ra.</p>
+      </section>
+    </div>
+
+    <div class="control-column">
+      <section class="panel mode-panel">
+        <h2>Chế độ vận hành</h2>
+        <div class="mode-grid" role="group" aria-label="Chế độ vận hành">
+          <button class="mode-button" data-mode="OFF" disabled><strong>OFF</strong><small>Dừng đầu ra</small></button>
+          <button class="mode-button" data-mode="MANUAL" disabled><strong>MANUAL</strong><small>Điều khiển tay</small></button>
+          <button class="mode-button" data-mode="AUTO" disabled><strong>AUTO</strong><small>Chu trình sấy</small></button>
+        </div>
+      </section>
+      <section class="panel recipe-panel">
+        <h2>Cài đặt mẻ sấy</h2>
+        <div class="recipe-fields">
+          <div class="setpoint-group">
+          <div class="recipe-row"><label for="setpoint-input">Nhiệt độ đặt</label><div class="number-field"><input id="setpoint-input" type="number" step="0.5" disabled><span>°C</span></div><button id="apply-setpoint" class="btn secondary" disabled>Áp dụng</button></div>
+          <input id="setpoint-range" type="range" step="0.5" aria-label="Điều chỉnh nhiệt độ đặt" disabled>
+          </div>
+          <div class="recipe-row"><label for="drying-minutes-input">Thời gian giữ nhiệt</label><div class="number-field"><input id="drying-minutes-input" type="number" min="0.1" step="0.1" disabled><span>phút</span></div><button id="apply-duration" class="btn secondary" disabled>Lưu thời gian</button></div>
+          <div class="recipe-row"><label for="cooling-input">Ngưỡng kết thúc làm nguội</label><div class="number-field"><input id="cooling-input" type="number" min="0" step="0.5" disabled><span>°C</span></div><button id="apply-cooling" class="btn secondary" disabled>Lưu ngưỡng</button></div>
+        </div>
+        <p id="recipe-hint" class="panel-note">Lưu thông số trước khi bắt đầu. OFF hủy mẻ hiện tại.</p>
+        <button id="start-drying" class="btn primary start-button" disabled>Bắt đầu sấy</button>
+      </section>
+    </div>
+  </main>
+
+  <footer class="statusbar">
+    <div class="device-status"><span id="sensor-dot" class="status-dot"></span><span>PT100: <b id="sensor-status">Chưa xác nhận</b></span></div>
+    <div class="device-status"><span id="relay-dot" class="status-dot"></span><span>Relay: <b id="relay-status">Chưa xác nhận</b></span></div>
+    <div class="device-status"><span id="mqtt-dot" class="status-dot"></span><span>MQTT: <b id="mqtt-status">Chưa xác nhận</b></span></div>
+    <span class="update-time">Cập nhật: <b id="last-update">—</b></span>
+    <p id="command-message" role="status">Đang chờ dữ liệu.</p>
+  </footer>
+</body>
+</html>

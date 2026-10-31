@@ -1,0 +1,378 @@
+HƯỚNG DẪN SCADA MÁY SẤY
+Cấu hình, vai trò từng tệp và quy trình hoạt động
+==================================================
+
+Ghi chú về phạm vi
+------------------
+Workspace hiện tại không phải Git repository, vì vậy không thể đối chiếu tự
+động từng dòng trước/sau khi thêm SCADA. Tài liệu này mô tả các tệp SCADA và
+cầu nối đang có trong workspace, không khẳng định đây là bản diff đầy đủ với
+một commit gốc.
+
+
+1. Có thể dùng control_station\.env làm tệp cấu hình chính không?
+-----------------------------------------------------------------
+Có. control_station\.env.example là tệp mẫu. Trên máy 1, chỉ khi chưa có tệp
+.env thì mới sao chép mẫu:
+
+  Copy-Item control_station\.env.example control_station\.env
+
+Sau đó điền TB_DEVICE_TOKEN của thiết bị máy 1. Nếu .env đã tồn tại và đã điền,
+không chạy lệnh Copy-Item để tránh ghi đè. main.py nạp biến môi trường từ
+control_station\.env. MQTT được khởi động khi chạy --hardware có token, hoặc
+chạy --mqtt để mô phỏng cả HMI và SCADA khi chưa có phần cứng. Chế độ --mqtt
+yêu cầu token hợp lệ, không mở COM và gửi telemetry simulation=true.
+Hướng dẫn test hai máy: docs/test_two_machines.md.
+
+Giữ riêng .env trên mỗi máy, không commit lên Git. Giữ .env.example làm mẫu cho
+lần cài đặt mới; hai tệp có vai trò khác nhau.
+
+
+2. Những thông tin cần lấy từ ThingsBoard
+-----------------------------------------
+Cần một tài khoản ThingsBoard và một Device đại diện cho bộ điều khiển máy 1.
+Tài khoản dùng bởi backend máy 2 cần có quyền xem telemetry và gửi RPC tới
+Device đó.
+
+A. Device Access Token
+   Lấy từ thiết lập Device trên ThingsBoard, điền vào control_station\.env:
+
+     TB_DEVICE_TOKEN=...
+
+   Máy 1 dùng token này để xác thực kết nối MQTT/TLS, gửi telemetry và nhận RPC.
+   Đây không phải mật khẩu tài khoản ThingsBoard, không phải Modbus ID và không
+   được đưa vào remote_scada\.env.
+
+B. Device ID / UUID
+   Lấy UUID của Device trên ThingsBoard, điền vào remote_scada\.env:
+
+     TB_DEVICE_ID=...
+
+   Đây là ID backend dùng để đọc dữ liệu hoặc gửi yêu cầu đến đúng Device. Nó
+   khác Device Access Token và khác địa chỉ Modbus.
+
+C. Tên đăng nhập và mật khẩu ThingsBoard
+   Điền vào remote_scada\.env:
+
+     TB_USERNAME=...
+     TB_PASSWORD=...
+
+   Backend máy 2 dùng tài khoản này để tự xác thực với API ThingsBoard, đọc
+   telemetry/lịch sử và gửi two-way RPC. Trình duyệt không nhận các thông tin này.
+
+D. URL máy chủ ThingsBoard
+   Điền vào remote_scada\.env:
+
+     TB_BASE_URL=https://thingsboard.cloud
+
+   Nếu dùng một máy chủ ThingsBoard khác, thay bằng URL HTTPS của instance đó.
+
+Tài khoản SCADA web là một bộ riêng, không phải tài khoản ThingsBoard:
+
+  SCADA_USERNAME
+  SCADA_PASSWORD
+  SCADA_SECRET_KEY
+
+Username/password SCADA dùng khi người vận hành đăng nhập website. Secret key
+dùng ký session của website. Backend không tự mở trình duyệt hoặc tự đăng nhập
+website giúp người vận hành.
+
+
+3. Khi chạy backend, nó có đăng nhập ThingsBoard không?
+-------------------------------------------------------
+Có, backend SCADA tự xác thực với ThingsBoard qua REST API bằng
+TB_USERNAME/TB_PASSWORD. Khi cần gọi ThingsBoard, backend gửi thông tin đến API
+xác thực, nhận JWT và giữ token trong RAM của tiến trình. Khi token gần hết hạn,
+backend thử refresh; nếu cần thì đăng nhập lại.
+
+Vì vậy có thể hiểu backend máy 2 là một client của ThingsBoard. Nó không phải
+người dùng đang đăng nhập bằng trình duyệt vào ThingsBoard Dashboard. Việc xác
+thực ThingsBoard của backend và việc người vận hành đăng nhập SCADA là hai phiên
+đăng nhập riêng:
+
+  Backend -- REST đăng nhập ThingsBoard --> ThingsBoard
+  Người vận hành -- nhập SCADA_USERNAME/PASSWORD --> Website SCADA
+
+Backend mở WebSocket đến API telemetry của ThingsBoard để nhận cập nhật mới.
+Nếu cache chưa có dữ liệu hoặc đã cũ, backend dùng REST để lấy telemetry hiện
+tại. Đây là API WebSocket của ThingsBoard, không phải backend máy 2 subscribe
+trực tiếp topic MQTT.
+
+
+4. Dữ liệu được ghi ở đâu?
+-------------------------
+Máy 1 định kỳ gửi telemetry lên ThingsBoard bằng MQTT. ThingsBoard lưu telemetry
+theo cấu hình lưu trữ và retention của nền tảng/tài khoản. SCADA truy vấn lịch
+sử nhiệt độ và sự kiện cảnh báo từ ThingsBoard.
+
+Backend SCADA hiện không ghi lịch sử telemetry vào cơ sở dữ liệu cục bộ riêng.
+Nó chỉ giữ cache telemetry gần nhất trong RAM để phục vụ giao diện. Khi backend
+dừng, cache RAM mất; bản ghi đã được ThingsBoard lưu vẫn nằm trên ThingsBoard
+theo chính sách lưu trữ đã cấu hình.
+
+Các thông số mẻ nhận từ SCADA được controller máy 1 giữ trong RAM, không ghi
+ngược vào YAML. Khi khởi động lại, máy 1 trở về OFF và lấy thông số mặc định từ
+tệp cấu hình YAML.
+
+
+5. HTTP và MQTT phối hợp ra sao?
+--------------------------------
+Hai giao thức phục vụ các đoạn kết nối khác nhau. Trình duyệt máy 2 không
+subscribe MQTT và máy 2 không gửi HTTP trực tiếp tới máy 1.
+
+Đọc trạng thái:
+
+  Máy 1 --MQTT/TLS telemetry--> ThingsBoard
+  ThingsBoard --WebSocket hoặc REST--> Backend SCADA trên máy 2
+  Trình duyệt máy 2 --HTTP GET /api/state--> Backend SCADA
+
+Gửi yêu cầu điều khiển:
+
+  Trình duyệt máy 2 --HTTP POST /api/commands--> Backend SCADA
+  Backend SCADA --HTTPS REST two-way RPC--> ThingsBoard
+  ThingsBoard --MQTT RPC--> Máy 1
+  Máy 1 --MQTT RPC response--> ThingsBoard
+  ThingsBoard --kết quả REST--> Backend SCADA
+  Backend SCADA --HTTP response--> Trình duyệt
+
+Máy 1 giữ kết nối MQTT/TLS tới ThingsBoard. Nó gửi dữ liệu định kỳ trên topic
+MQTT telemetry và đăng ký topic yêu cầu RPC của chính Device. ThingsBoard nhận
+RPC từ backend rồi chuyển tiếp qua kết nối MQTT đó. Máy 1 xử lý lệnh trong vòng
+runtime/controller, sau đó gửi kết quả về topic phản hồi RPC.
+
+HTTP phía trình duyệt chỉ đi tới máy chủ Flask trên máy 2. Backend cũng dùng
+HTTPS REST và WebSocket để giao tiếp với ThingsBoard; riêng yêu cầu điều khiển
+được gửi bằng REST two-way RPC. Sau đó ThingsBoard chuyển RPC xuống máy 1 bằng
+MQTT. Do đó giao diện web chạy local bằng HTTP vẫn có thể gửi/nhận qua cloud;
+hai việc này không mâu thuẫn nhau.
+
+
+6. Khi bấm nút, dữ liệu lệnh cụ thể là gì?
+------------------------------------------
+Ví dụ đặt thời gian giữ nhiệt là 10 phút:
+
+A. Trình duyệt gửi HTTP JSON đến backend SCADA. Giao diện đổi phút thành giây:
+
+  POST /api/commands
+  {"command_type":"SET_DRYING_DURATION","value":600}
+
+B. Backend kiểm tra phiên đăng nhập, CSRF token, tên lệnh và giá trị. Nếu hợp
+lệ, backend tạo command_id và timestamp_ms, rồi gọi ThingsBoard REST two-way
+RPC với phương thức và params tương đương:
+
+  {
+    "method": "SET_DRYING_DURATION",
+    "params": {
+      "command_id": "<UUID>",
+      "timestamp_ms": 1790000000000,
+      "value": 600
+    }
+  }
+
+C. ThingsBoard gửi phương thức và params này qua MQTT tới Device máy 1. Callback
+MQTT trên máy 1 kiểm tra cấu trúc và đưa yêu cầu vào hàng đợi, không trực tiếp
+bật/tắt relay.
+
+D. StationRuntime lấy yêu cầu khỏi hàng đợi và đưa cho SystemController. Bộ
+điều khiển kiểm tra quyền REMOTE_SCADA, thời hạn lệnh, chế độ hiện tại, giá trị
+thông số và điều kiện an toàn. Chỉ controller máy 1 quyết định chấp nhận hay từ
+chối.
+
+E. Máy 1 gửi phản hồi accepted/rejected lên ThingsBoard qua MQTT. Two-way RPC
+đưa phản hồi về backend, rồi backend trả HTTP response cho trình duyệt.
+
+Các lệnh SCADA được phép gồm chuyển AUTO/OFF, bắt đầu sấy, thay đổi thông số mẻ
+khi phù hợp và dừng khẩn cấp. SCADA không điều khiển relay thủ công hoặc reset
+cảnh báo. "Accepted" chỉ có nghĩa controller chấp nhận yêu cầu; không chứng
+minh tải vật lý đã chạy. Cần xác nhận trạng thái qua telemetry và quy trình
+kiểm tra an toàn tại chỗ.
+
+
+7. Quy trình chạy toàn hệ thống từng bước
+-----------------------------------------
+ Bước 1 - Chuẩn bị ThingsBoard
+   - Đăng nhập ThingsBoard.
+   - Tạo Device cho máy sấy nếu chưa có.
+   - Tạo/lấy Device Access Token.
+   - Lấy Device UUID.
+   - Chuẩn bị tài khoản ThingsBoard có quyền xem và gửi RPC tới Device.
+
+ Bước 2 - Cấu hình máy 1
+   - Nếu chưa có, sao chép control_station\.env.example thành
+     control_station\.env.
+   - Điền Device Access Token vào TB_DEVICE_TOKEN.
+   - Cài các gói theo README nếu máy chưa được cài.
+   - Kết nối PT100/relay, mở PowerShell tại thư mục
+     temperature_control_system và chạy:
+
+       python -m control_station.main --hardware
+
+   - Kiểm tra log kết nối MQTT và telemetry của Device trên ThingsBoard.
+   - Không chạy lệnh không có --hardware nếu muốn điều khiển phần cứng thật;
+     mặc định chương trình chạy mô phỏng.
+
+ Bước 3 - Cấu hình máy 2
+   - Trong remote_scada\.env, điền TB_BASE_URL, TB_USERNAME, TB_PASSWORD và
+     TB_DEVICE_ID tương ứng cùng Device máy 1.
+   - Đặt riêng SCADA_USERNAME, SCADA_PASSWORD và giữ bí mật
+     SCADA_SECRET_KEY.
+   - Cài gói:
+
+       python -m pip install -r remote_scada\requirements.txt
+
+   - Chạy backend từ thư mục temperature_control_system:
+
+       python -m remote_scada.server
+
+ Bước 4 - Đăng nhập, giám sát
+   - Trên máy 2 mở trình duyệt tại http://127.0.0.1:8080.
+   - Tự nhập SCADA_USERNAME và SCADA_PASSWORD. Backend không tự mở trình duyệt
+     hoặc đăng nhập website thay người vận hành.
+   - Kiểm tra nhiệt độ, trạng thái máy 1, pha sấy, kết nối, biểu đồ và cảnh báo.
+
+ Bước 5 - Gửi lệnh
+   - Chỉnh thông số mẻ khi controller cho phép.
+   - Gửi AUTO/bắt đầu sấy hoặc OFF.
+   - Đọc kết quả controller trên giao diện; sau đó theo dõi telemetry và phản
+     hồi relay riêng.
+   - Khi dừng khẩn cấp, vẫn kiểm tra thiết bị thực tế và tuân thủ quy trình an
+     toàn tại chỗ.
+
+
+8. Các tệp liên quan và vai trò
+-------------------------------
+
+MÁY 1 - control_station
+
+control_station\.env.example
+  Tệp mẫu cấu hình MQTT máy 1. TB_DEVICE_TOKEN xác thực thiết bị; host/port là
+  broker MQTT/TLS. Không chép token sang máy 2.
+
+control_station\main.py
+  Nạp .env, chọn mô phỏng hoặc phần cứng, khởi tạo runtime. Chỉ khi chạy
+  --hardware và có Device Token thì mới tạo cầu nối MQTT/SCADA.
+
+control_station\runtime.py
+  Vòng đọc cảm biến và chạy controller/relay. Rút lệnh RPC từ hàng đợi trong
+  vòng điều khiển để bảo đảm lệnh từ xa vẫn qua controller cục bộ.
+
+control_station\mqtt_client.py
+  Gửi telemetry và sự kiện alarm định kỳ; nhận RPC, kiểm tra payload, xếp lệnh
+  và gửi phản hồi qua MQTT. Không điều khiển relay trong callback MQTT.
+
+control_station\models.py
+  Các kiểu lệnh, trạng thái, thông số, nguồn lệnh và kết quả dùng chung. Nguồn
+  REMOTE_SCADA cho phép controller phân quyền lệnh từ xa.
+
+control_station\controller.py
+  Nơi duy nhất quyết định trạng thái điều khiển máy 1. Kiểm tra an toàn, quyền
+  SCADA, timestamp, chế độ và lệnh trước khi thay đổi đầu ra.
+
+MÁY 2 - remote_scada
+
+remote_scada\.env
+  Cấu hình chạy thực tế máy 2: URL, tài khoản ThingsBoard, UUID thiết bị, tài
+  khoản đăng nhập SCADA, khóa session và host/port web. Không commit hoặc chia sẻ.
+
+remote_scada\.env.example
+  Tệp mẫu để dựng .env cho lần cài mới. Chương trình đọc .env, không đọc tệp mẫu.
+
+remote_scada\requirements.txt
+  Các thư viện backend Flask, python-dotenv, requests và websocket-client.
+
+remote_scada\server.py
+  Ứng dụng Flask: đăng nhập web, session/CSRF, trang dashboard, API đọc telemetry/
+  lịch sử và API kiểm tra/chuyển tiếp lệnh. Credential ThingsBoard chỉ ở backend.
+
+remote_scada\thingsboard_client.py
+  Đăng nhập REST ThingsBoard lấy JWT, đọc telemetry/lịch sử, nhận cập nhật qua
+  WebSocket, giữ cache RAM và gửi two-way RPC.
+
+remote_scada\frontend\login.html
+  Form đăng nhập bằng tài khoản SCADA web, không phải tài khoản ThingsBoard.
+
+remote_scada\frontend\index.html
+  Cấu trúc dashboard hiển thị nhiệt độ, pha, trạng thái đầu ra, biểu đồ, cảnh báo
+  và các điều khiển cấp cao.
+
+remote_scada\frontend\app.js
+  Gọi API Flask bằng HTTP, dựng trạng thái/biểu đồ và gửi lệnh kèm CSRF token.
+
+remote_scada\frontend\style.css
+  Kiểu trình bày dashboard và trang đăng nhập; không chứa logic điều khiển.
+
+remote_scada\tests\test_scada.py
+remote_scada\tests\test_server.py
+remote_scada\tests\test_thingsboard_client.py
+  Kiểm thử đăng nhập, session/CSRF, telemetry, lịch sử, whitelist lệnh, RPC và
+  phản hồi từ chối bằng client/gateway giả.
+
+README.md
+  Hướng dẫn cài đặt và chạy. Phần ThingsBoard/SCADA mô tả rõ HTTP, MQTT, ví dụ
+  payload lệnh, nơi lưu telemetry và giới hạn điều khiển từ xa.
+
+docs\communication_contract.md
+  Hợp đồng telemetry, alarm, API, lệnh, đơn vị và quyền điều khiển giữa máy 1
+  với SCADA máy 2.
+
+docs\development_log.md
+  Nhật ký phát triển theo thời gian; một số ghi chú cũ có thể mô tả trạng thái
+  lịch sử, nên khi vận hành hãy ưu tiên README và mã hiện tại.
+
+
+9. Khác mạng và giới hạn truy cập web
+-------------------------------------
+Máy 1 và máy 2 có thể ở hai mạng khác nhau. Cả hai chủ động kết nối ra Internet
+đến ThingsBoard; không cần mở kết nối trực tiếp từ máy 2 vào Modbus/relay máy 1.
+Firewall hai bên phải cho phép kết nối ra ngoài tới dịch vụ ThingsBoard.
+
+SCADA_HOST=127.0.0.1 mặc định chỉ cho mở website ngay trên máy 2. Đây là giới hạn
+truy cập website, không phải giới hạn đường MQTT/ThingsBoard giữa hai máy. Muốn
+mở website cho thiết bị khác phải triển khai HTTPS/reverse proxy hoặc VPN an
+toàn; không phơi Flask development server trực tiếp ra Internet.
+
+Khi mất ThingsBoard, điều khiển cục bộ máy 1 vẫn tiếp tục; SCADA có thể không
+nhận telemetry mới và không gửi được lệnh. Readback coil không chứng minh tải
+vật lý đang chạy.
+
+
+10. Chú thích được bổ sung trong mã nguồn ở lần cập nhật gần đây
+---------------------------------------------------------------
+Các chú thích/docstring trong các tệp đã sửa được viết bằng tiếng Việt có dấu.
+Chúng mô tả vai trò tổng quát hoặc nhiệm vụ của từng hàm ở các phần liên quan:
+
+  control_station\main.py
+    Nạp cấu hình, chọn runtime và điều kiện bật cầu nối ThingsBoard.
+
+  control_station\runtime.py
+    Tạo, chạy, xử lý lệnh RPC trong vòng cục bộ và dừng runtime.
+
+  control_station\models.py
+    Mô tả kiểu dữ liệu trạng thái/lệnh/nguồn và kiểm tra thông số.
+
+  control_station\mqtt_client.py
+    Mô tả khởi tạo, kết nối, gửi telemetry, nhận/đưa lệnh vào hàng đợi và gửi
+    phản hồi RPC.
+
+  control_station\controller.py
+    Mô tả phân quyền REMOTE_SCADA và các hàm kiểm tra setpoint, trạng thái mẻ,
+    pha làm nguội, timestamp và kết quả lệnh.
+
+  remote_scada\server.py
+    Mô tả tạo ứng dụng, bảo vệ session/CSRF, xử lý trang/API và kiểm tra lệnh.
+
+  remote_scada\thingsboard_client.py
+    Mô tả đăng nhập/làm mới JWT, REST, WebSocket, cache, lịch sử và RPC.
+
+  remote_scada\frontend\app.js
+    Mô tả các hàm hiển thị, tải dữ liệu, vẽ biểu đồ và gửi lệnh từ trình duyệt.
+
+  remote_scada\frontend\index.html, login.html, style.css
+    Mô tả ranh giới giữa giao diện SCADA, tài khoản đăng nhập và điều khiển máy 1.
+
+  control_station\.env.example, README.md
+    Làm rõ vai trò Device Token và cách tạo .env mà không ghi đè cấu hình có sẵn.
+
+  remote_scada\__init__.py
+    Mô tả package SCADA máy 2; docstring placeholder cũ trong
+    thingsboard_client.py cũng đã được thay bằng mô tả module hợp lệ.
